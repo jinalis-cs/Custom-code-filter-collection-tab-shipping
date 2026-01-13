@@ -1,0 +1,156 @@
+{% if section.settings.enable_quickview %}
+  {{ 'magnific-popup.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'magnific-popup.js' | asset_url }}" defer="defer"></script>  
+{% endif %}
+
+<section class="brushed-cotton-section you-may-also-like-section product-recently-viewed hidden">
+  <div class="container">
+    {% if section.settings.heading != blank %}
+      <div class="section-title text-center">
+          {{ section.settings.heading }}
+      </div>
+    {% endif %}
+    <div class="recently-viewed hover-show" data-section-id="{{ section.id }}" data-quickview="{{ section.settings.enable_quickview }}"></div>
+    {% if section.settings.enable_quickview %}
+      <div id="quickview-modal" class="white-popup-block mfp-hide">
+        <div class="quickview-content"></div>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var money_with_currency_format = "{{ shop.money_with_currency_format }}";
+  
+  if(typeof Stronge !== undefined){
+    var currentProductHandle = "{{product.handle}}";
+    let viewedProducts = localStorage.getItem('recently_viewed');
+    viewedProducts = viewedProducts ? JSON.parse(viewedProducts) : [];
+    //console.log('viewedProducts',viewedProducts);
+      
+    if(viewedProducts.length == 0){        
+      viewedProducts.unshift(currentProductHandle);
+      localStorage.setItem('recently_viewed', JSON.stringify(viewedProducts));
+    } 
+    else{  
+            
+      if(viewedProducts.includes(currentProductHandle)){
+        showViewedProducts();
+      }else{
+        
+        viewedProducts.unshift(currentProductHandle);
+        // console.log('filled_arr',viewedProducts);
+        if(viewedProducts.length > 5){ 
+          viewedProducts.pop();
+        }
+        showViewedProducts();
+        localStorage.setItem('recently_viewed', JSON.stringify(viewedProducts)); 
+      }         
+    }
+
+    function showViewedProducts() {
+      const viewedArr = JSON.parse(localStorage.getItem('recently_viewed'));
+     // console.log('viewedArr',viewedArr);
+     
+      if(viewedProducts.length > 0){
+        const recentlyViewHtml = [];
+        const section_id = document.querySelector('.recently-viewed').getAttribute('data-section-id');
+        const form_id = 'product-form-' + section_id;
+        var newArr = [];
+
+        newArr = viewedProducts.filter((prod) => prod != currentProductHandle);    
+           
+        if(newArr.length > 0){                    
+          let recentlyViewedContainer = document.querySelector('.recently-viewed');
+          let fetchPromises = newArr.map((productHandle) => {
+            return fetch(window.Shopify.routes.root + 'products/' + productHandle + '.js')
+                    .then(response => response.json())
+                    .then(product => {
+                        const disabled = (!product.variants[0].available) ? 'disabled' : '';
+                        const addtocart_label = (product.variants[0].available) ? 'Add To Cart' : 'Sold Out';
+                      
+                        let comparePriceHtml = '';
+                        if (product.variants[0].compare_at_price && product.variants[0].compare_at_price > product.variants[0].price) {
+                            comparePriceHtml = `<del>${Shopify.formatMoney(product.variants[0].compare_at_price, money_with_currency_format)}</del>`;
+                        }
+
+                        let quickViewHtml = '';
+                        if(recentlyViewedContainer.getAttribute('data-quickview')){
+                          quickViewHtml = `<a href="javascript:void(0);" data-model-id="quickview-modal-${product.id}" class="quickview-btn btn" data-url="${product.url}" data-id="${product.id}">
+                                            Quick View 
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                                <path d="M10.7812 9.21875V0H9.21875V9.21875H0V10.7812H9.21875V20H10.7812V10.7812H20V9.21875H10.7812Z"fill="#61AFB3" /></path>
+                                            </svg>
+                                           </a>`;
+                        }
+  
+                        return `
+                          <div class="brushed-cotton-itm product-card">
+                              <div class="product-card-inner">
+                                  <div class="product-card-img">
+                                      <a href="${product.url}" class="pro-img">
+                                          <img src="${product.featured_image}" alt="${product.title}">
+                                      </a>
+                                      <div class="hover-btn">
+                                          ${quickViewHtml}
+                                          <form method="post" action="/cart/add" id="${form_id}" class="form product_form" novalidate enctype="multipart/form-data">
+                                              <input type="hidden" name="id" value="${product.variants[0].id}">
+                                              <input type="hidden" name="quantity" value="1">
+                                              <button type="submit" class="add-to-cart-btn btn ${disabled}" id="AddToCart-${section_id}-${product.id}" ${disabled}>
+                                                  ${addtocart_label}
+                                              </button>
+                                          </form>
+                                      </div>
+                                  </div>
+                                  <div class="product-card-content">
+                                      <div class="pro-title">
+                                          <a href="${product.url}" class="card-prod-title">${product.title}</a>
+                                      </div>
+                                      <div class="price flex align-center">
+                                        ${comparePriceHtml} 
+                                        <ins>${Shopify.formatMoney(product.variants[0].price, money_with_currency_format)}</ins>
+                                    </div>
+                                  </div>                                
+                              </div>
+                          </div>`;
+                      });
+          });
+          
+          Promise.all(fetchPromises).then((recentlyViewHtml) => {            
+            if(recentlyViewedContainer){
+              recentlyViewedContainer.innerHTML = recentlyViewHtml.join('');
+            }
+            const recentlyViewedDiv = document.querySelector('.product-recently-viewed');
+            (recentlyViewedDiv.classList.contains('hidden')) ? recentlyViewedDiv.classList.remove('hidden') : '';
+          });
+        }
+      }      
+    }   
+  }     
+});
+</script>
+
+
+{% schema %}
+  {
+    "name": "Recently viewed",
+    "settings": [
+      {
+        "type": "richtext",
+        "id": "heading",
+        "label": "t:sections.related-products.settings.heading.label"
+      },
+      {
+        "type": "checkbox",
+        "id": "enable_quickview",
+        "label": "Enable quickview"
+      }
+    ],
+    "presets": [
+      {
+        "name": "Recently viewed"
+      }
+    ]
+  }
+{% endschema %}
