@@ -6,6 +6,15 @@
 
 https://prnt.sc/ZodCU9Jz6c2k
 
+{% assign current_variant = product.selected_or_first_available_variant %}
+                {% if current_variant.metafields.custom.size_guide != blank %}
+                <button id="open-size-guide" class="size-guide-btn">
+                  Size Guide
+                </button>
+                {% endif %}
+
+https://prnt.sc/nFCnNuDwPli2
+
 {% style %}
   .size-guide-drawer {
   position: fixed;
